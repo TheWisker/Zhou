@@ -1,0 +1,1 @@
+/home/wisker/.cache/wal/colors.lua
