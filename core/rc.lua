@@ -122,7 +122,7 @@ awesome.connect_signal(
     "startup",
     function()
         collectgarbage("incremental", 150, 600, 0)
-        --awful.spawn.with_shell(beautiful.exec.compositor.on)
+        awful.spawn.with_shell(beautiful.exec.compositor.on)
         collectgarbage("collect") --> Collect garbage
         print("Memory in use: " .. (collectgarbage("count") / 1024) .. "Mb")
         return gears.timer({
