@@ -17,19 +17,17 @@ local require = require
 -- =========================================================>
 local awful = require("awful")
 local beautiful = require("beautiful")
+local dpi = beautiful.xresources.apply_dpi
 -- =========================================================>
 --  [Imports] Signal:
 -- =========================================================>
 local signal = require("module.signal")
 -- =========================================================>
---  [Imports] Libraries:
--- =========================================================>
-local playerctl = require("lib.bling").signal.playerctl.lib()
--- =========================================================>
 --  [Imports] Optimization:
 -- =========================================================>
 local next = next
-local client = client
+local client = client --> Awesome Global
+local awesome = awesome --> Awesome Global
 -- =========================================================>
 --  [Imports] Bind - Keyboard:
 -- =========================================================>
@@ -37,7 +35,7 @@ local ks = require("module.bind.keys")
 -- =========================================================>
 --  [Table] This:
 -- =========================================================>
-local this = {}
+local this = {desktop_hidden = false}
 -- =========================================================>
 --  [Keybindings] Global & Clients:
 -- =========================================================>
@@ -56,51 +54,10 @@ this.keybindings = {
                 modifiers = {ks.MOD},
                 description = "Show/hide help popup",
                 on_release = function()
-                    --require("awful.hotkeys_popup").show_help()
+                    return signal.awesome.help() --> Proper tail call
                 end
             }),
 -- =========================================================>
-            awful.key({
-                key = ks.R,
-                modifiers = {ks.MOD, ks.CTRL},
-                description = "Safe restart AwesomeWM",
-                on_release = function()
-                    return awful.util.restart() -- returns nil if correct and error message if fails because of bad config
-                end
-            }),
-            awful.key({
-                key = ks.R,
-                modifiers = {ks.MOD, ks.SHIFT, ks.CTRL},
-                description = "Safe restart AwesomeWM",
-                on_release = awesome.restart
-            }),
--- =========================================================>
-            awful.key({
-                key = ks.Q,
-                modifiers = {ks.MOD, ks.CTRL},
-                description = "Quit AwesomeWM",
-                on_release = awesome.quit
-            }),
-
-
-            awful.key({
-                key = ks.ESC,
-                modifiers = {ks.MOD},
-                description = "Open session popup",
-                on_release = function()
-                    return signal.exitscreen.show() --> Proper tail call
-                end
-            }),
-
-            awful.key({
-                key = ks.D,
-                modifiers = {ks.MOD},
-                description = "Show desktop",
-                on_release = function()
-
-                end
-            }),
-
             awful.key({
                 key = ks.LESS,
                 modifiers = {ks.MOD},
@@ -109,14 +66,65 @@ this.keybindings = {
                     return signal.taskbar.toggle() --> Proper tail call
                 end
             }),
-
-
+-- =========================================================>
+            awful.key({
+                key = ks.ESC,
+                modifiers = {ks.MOD},
+                description = "Open session popup",
+                on_release = function()
+                    return signal.session.show() --> Proper tail call
+                end
+            }),
+-- =========================================================>
+            awful.key({
+                key = ks.Q,
+                modifiers = {ks.MOD, ks.CTRL},
+                description = "Quit AwesomeWM",
+                on_release = awesome.quit
+            }),
+-- =========================================================>
             awful.key({
                 key = ks.L,
                 modifiers = {ks.MOD},
                 description = "Lock session",
                 on_release = function()
                     return awful.spawn.with_shell(beautiful.exec.command.lock) --> Proper tail call
+                end
+            }),
+-- =========================================================>
+            awful.key({
+                key = ks.R,
+                modifiers = {ks.MOD, ks.CTRL},
+                description = "Restart AwesomeWM safely",
+                on_release = function()
+                    return signal.notification.assert(nil, awful.util.restart()) --> Proper tail call
+                end
+            }),
+            awful.key({
+                key = ks.R,
+                modifiers = {ks.MOD, ks.SHIFT, ks.CTRL},
+                description = "Restart AwesomeWM come what may",
+                on_release = awesome.restart
+            }),
+-- =========================================================>
+            awful.key({
+                key = ks.D,
+                modifiers = {ks.MOD},
+                description = "Show desktop",
+                on_release = function()
+                    if (this.desktop_hidden) then
+                        for _,c in next, this.desktop_hidden do
+                            c.minimized = false
+                        end
+                    else
+                        this.desktop_hidden = {}
+                        for _,c in next, client.get() do
+                            if (not c.minimized) then
+                                c.minimized = true
+                                this.desktop_hidden[(#this.desktop_hidden)+1] = c
+                            end
+                        end
+                    end
                 end
             })
 -- =========================================================>
@@ -148,7 +156,7 @@ this.keybindings = {
                 modifiers = {ks.MOD},
                 description = "Open file manager",
                 on_release = function()
-                    return awful.spawn.with_shell(beautiful.exec.app.files) --> Proper tail call
+                    return awful.spawn.with_shell(beautiful.exec.app.filemanager) --> Proper tail call
                 end
             }),
             awful.key({
@@ -169,7 +177,7 @@ this.keybindings = {
 -- =========================================================>
             awful.key({
                 key = ks.ESC,
-                modifiers = {ks.MOD, ks.CTRL},
+                modifiers = {ks.MOD, ks.ALT},
                 description = "Switch to previous tag history index",
                 on_release = function()
                     return awful.tag.history.restore(
@@ -180,7 +188,7 @@ this.keybindings = {
 -- =========================================================>
             awful.key({
                 key = ks.LEFT,
-                modifiers = {ks.MOD, ks.CTRL},
+                modifiers = {ks.MOD, ks.ALT},
                 description = "Switch to previous tag",
                 on_release = function()
                     return awful.tag.viewprev(
@@ -190,7 +198,7 @@ this.keybindings = {
             }),
             awful.key({
                 key = ks.RIGHT,
-                modifiers = {ks.MOD, ks.CTRL},
+                modifiers = {ks.MOD, ks.ALT},
                 description = "Switch to next tag",
                 on_release = function()
                     return awful.tag.viewnext(
@@ -212,7 +220,7 @@ this.keybindings = {
             }),
             awful.key({
                 keygroup = awful.key.keygroup.NUMPAD,
-                modifiers = {ks.MOD, ks.CTRL},
+                modifiers = {ks.MOD, ks.ALT},
                 description = "Toggle showing the focused screen's nth tag",
                 on_release = function(index)
                     local tag = awful.screen.focused().tags[index]
@@ -224,7 +232,7 @@ this.keybindings = {
 -- =========================================================>
             awful.key({
                 keygroup = awful.key.keygroup.NUMPAD,
-                modifiers = {ks.MOD, ks.SHIFT},
+                modifiers = {ks.MOD, ks.CTRL},
                 description = "Move the focused client to its screen's nth tag",
                 on_release = function(index)
                     if (client.focus) then
@@ -237,7 +245,7 @@ this.keybindings = {
             }),
             awful.key({
                 keygroup = awful.key.keygroup.NUMPAD,
-                modifiers = {ks.MOD, ks.SHIFT, ks.CTRL},
+                modifiers = {ks.MOD, ks.CTRL, ks.SHIFT},
                 description = "Toggle the focused client on its screen's nth tag",
                 on_release = function(index)
                     if (client.focus) then
@@ -339,6 +347,18 @@ this.keybindings = {
 -- =========================================================>
             awful.key({
                 keygroup = awful.key.keygroup.ARROWS,
+                modifiers = {ks.MOD, ks.SHIFT, ks.ALT},
+                description = "Swap the screen with the one in the direction of the arrow",
+                on_release = function(arrow)
+                    local s = awful.screen.focused()
+                    return s:swap(
+                        s:get_next_in_direction(arrow)
+                    ) --> Proper tail call
+                end
+            }),
+-- =========================================================>
+            awful.key({
+                keygroup = awful.key.keygroup.ARROWS,
                 modifiers = {ks.MOD, ks.SHIFT},
                 description = "Move the client in the direction of the arrow",
                 on_release = function(arrow)
@@ -354,12 +374,12 @@ this.keybindings = {
                             elseif (arrow == "left") then
                                 return c:geometry({x = workarea.x + (useless_gap * 2), nil, nil, nil}) --> Proper tail call
                             elseif (arrow == "right") then
-                                return c:geometry({x = (workarea.width + workarea.x) - (c:geometry().width + (s) + (c.border_width * 2)), nil, nil, nil}) --> Proper tail call
+                                return c:geometry({x = (workarea.width + workarea.x) - (c:geometry().width + (useless_gap * 2) + (c.border_width * 2)), nil, nil, nil}) --> Proper tail call
                             end
                         elseif (awful.layout.get(c.screen) == awful.layout.suit.max) then
                             if ((arrow == "up") or (arrow == "left")) then
                                 return awful.client.swap.byidx(-1, c) --> Proper tail call
-                            elseif ((direction == "down") or (direction == "right")) then
+                            elseif ((arrow == "down") or (arrow == "right")) then
                                 return awful.client.swap.byidx(1, c) --> Proper tail call
                             end
                         else
@@ -367,18 +387,8 @@ this.keybindings = {
                         end
                     end
                 end
-            }),
-            awful.key({
-                keygroup = awful.key.keygroup.ARROWS,
-                modifiers = {ks.MOD, ks.SHIFT, ks.ALT},
-                description = "Swap the screen with the one in the direction of the arrow",
-                on_release = function(arrow)
-                    local s = awful.screen.focused()
-                    return s:swap(
-                        s:get_next_in_direction(arrow)
-                    ) --> Proper tail call
-                end
             })
+-- =========================================================>
         },
         {
 -- =========================================================>
@@ -395,15 +405,15 @@ this.keybindings = {
                     if (c) then
                         if (c.floating or (awful.layout.get(c.screen) == awful.layout.suit.floating)) then
                             if ((arrow == "up") or (arrow == "down")) then
-                                return c:relative_move(0, 0, 0, floating_resize_amount * ((arrow == "up") and -1 or 1)) --> Proper tail call
+                                return c:relative_move(0, 0, 0, dpi(10) * ((arrow == "up") and -1 or 1)) --> Proper tail call
                             elseif ((arrow == "left") or (arrow == "right")) then
-                                return c:relative_move(0, 0, floating_resize_amount * ((arrow == "left") and -1 or 1), 0) --> Proper tail call
+                                return c:relative_move(0, 0, dpi(10) * ((arrow == "left") and -1 or 1), 0) --> Proper tail call
                             end
                         else
                             if ((arrow == "up") or (arrow == "down")) then
-                                return awful.client.incwfact(tiling_resize_factor * ((arrow == "up") and -1 or 1)) --> Proper tail call
+                                return awful.client.incwfact(0.05 * ((arrow == "up") and -1 or 1)) --> Proper tail call
                             elseif ((arrow == "left") or (arrow == "right")) then
-                                return awful.tag.incmwfact(tiling_resize_factor * ((arrow == "left") and -1 or 1)) --> Proper tail call
+                                return awful.tag.incmwfact(0.05 * ((arrow == "left") and -1 or 1)) --> Proper tail call
                             end
                         end
                     end
@@ -419,7 +429,7 @@ this.keybindings = {
             awful.key({
                 key = ks.T,
                 modifiers = {ks.MOD, ks.ALT},
-                description = "Switch to tiling layout", -- make so that it changes direction on consecutive calls
+                description = "Switch to tiling layout",
                 on_release = function()
                     return awful.layout.set(awful.layout.suit.tile) --> Proper tail call
                 end
@@ -458,7 +468,7 @@ this.keybindings = {
 -- =========================================================>
             awful.key({
                 key = ks.J,
-                modifiers = {ks.MOD, ks.SHIFT},
+                modifiers = {ks.MOD, ks.CTRL},
                 description = "Swap with previous client by index",
                 on_release = function()
                     return awful.client.swap.byidx(-1) --> Proper tail call
@@ -466,7 +476,7 @@ this.keybindings = {
             }),
             awful.key({
                 key = ks.K,
-                modifiers = {ks.MOD, ks.SHIFT},
+                modifiers = {ks.MOD, ks.CTRL},
                 description = "Swap with next client by index",
                 on_release = function()
                     return awful.client.swap.byidx( 1) --> Proper tail call
@@ -509,7 +519,7 @@ this.keybindings = {
 -- =========================================================>
             awful.key({
                 key = ks.H,
-                modifiers = {ks.MOD, ks.CTRL},
+                modifiers = {ks.MOD, ks.ALT, ks.SHIFT},
                 description = "Decrease the column_count of the current focused layout",
                 on_release = function()
                     return awful.tag.incncol(-1, nil, true) --> Proper tail call
@@ -517,16 +527,16 @@ this.keybindings = {
             }),
             awful.key({
                 key = ks.L,
-                modifiers = {ks.MOD, ks.CTRL},
+                modifiers = {ks.MOD, ks.ALT, ks.SHIFT},
                 description = "Increase the column_count of the current focused layout",
                 on_release = function()
                     return awful.tag.incncol( 1, nil, true) --> Proper tail call
                 end
             }),
 -- =========================================================>
-            awful.key({ -- baad, colission
-                keygroup =awful.key.keygroup.NUMROW,
-                modifiers = {ks.MOD, ks.CTRL},
+            awful.key({
+                keygroup = awful.key.keygroup.NUMROW,
+                modifiers = {ks.MOD, ks.ALT},
                 description = "Toggle showing the focused screen's nth tag",
                 on_release = function(index)
                     local tag = awful.screen.focused().selected_tag
@@ -548,7 +558,7 @@ this.keybindings = {
                 modifiers = {},
                 description = "Mute current audio sink",
                 on_release = function()
-
+                    return awful.spawn.with_shell(beautiful.exec.audio.mute) --> Proper tail call
                 end
             }),
 -- =========================================================>
@@ -557,7 +567,7 @@ this.keybindings = {
                 modifiers = {},
                 description = "Raise volume of current audio sink",
                 on_release = function()
-
+                    return awful.spawn.with_shell(beautiful.exec.audio.volume_up) --> Proper tail call
                 end
             }),
             awful.key({
@@ -565,7 +575,7 @@ this.keybindings = {
                 modifiers = {},
                 description = "Lower volume of current audio sink",
                 on_release = function()
-
+                    return awful.spawn.with_shell(beautiful.exec.audio.volume_down) --> Proper tail call
                 end
             }),
 -- =========================================================>
@@ -574,7 +584,7 @@ this.keybindings = {
                 modifiers = {},
                 description = "Play/pause current audio source",
                 on_release = function()
-                    return playerctl:play_pause() --> Proper tail call
+                    return awful.spawn.with_shell(beautiful.exec.audio.pause) --> Proper tail call
                 end
             }),
 -- =========================================================>
@@ -583,7 +593,7 @@ this.keybindings = {
                 modifiers = {},
                 description = "Skip to next for current audio source",
                 on_release = function()
-                    return playerctl:next() --> Proper tail call
+                    return awful.spawn.with_shell(beautiful.exec.audio.next) --> Proper tail call
                 end
             }),
             awful.key({
@@ -591,7 +601,24 @@ this.keybindings = {
                 modifiers = {},
                 description = "Skip to previous for current audio source",
                 on_release = function()
-                    return playerctl:previous() --> Proper tail call
+                    return awful.spawn.with_shell(beautiful.exec.audio.prev) --> Proper tail call
+                end
+            }),
+-- =========================================================>
+            awful.key({
+                key = ks.A_NEXT,
+                modifiers = {ks.MOD},
+                description = "Increase position of track for current audio source",
+                on_release = function()
+                    return awful.spawn.with_shell(beautiful.exec.audio.position_up) --> Proper tail call
+                end
+            }),
+            awful.key({
+                key = ks.A_PREV,
+                modifiers = {ks.MOD},
+                description = "Decrease position of track for current audio source",
+                on_release = function()
+                    return awful.spawn.with_shell(beautiful.exec.audio.position_down) --> Proper tail call
                 end
             })
         },
@@ -608,7 +635,7 @@ this.keybindings = {
                 on_release = function()
                     return awful.spawn.with_shell(beautiful.exec.app.screenshot) --> Proper tail call
                 end
-            }),
+            })
         }
 
     },
@@ -616,25 +643,39 @@ this.keybindings = {
 -- =========================================================>
 ---> Client keyboard bindings:
 -- =========================================================>
-        group = "client",
+        awful.key({
+            key = ks.Q,
+            group = "client",
+            modifiers = {ks.MOD, ks.CTRL},
+            description = "Kill client using the X11 Protocol",
+            on_release = function(c)
+                return c:kill() --> Proper tail call
+            end
+        }),
+-- =========================================================>
+        awful.key({
+            key = ks.H,
+            group = "client",
+            modifiers = {ks.MOD, ks.CTRL},
+            description = "Toggle client minimized state",
+            on_release = function(c)
+                c.minimized = not c.minimized
+                if (not c.minimized) then
+                    return c:raise() --> Proper tail call
+                end
+            end
+        }),
 -- =========================================================>
         awful.key({
             key = ks.SPACE,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL},
             description = "Toggle floating for the client",
             on_release = awful.client.floating.toggle
         }),
         awful.key({
-            key = ks.F,
-            modifiers = {ks.MOD, ks.CTRL},
-            description = "Toggle fullscreen for the client",
-            on_release = function(c)
-                c.fullscreen = not c.fullscreen
-                return c:raise() --> Proper tail call
-            end
-        }),
-        awful.key({
             key = ks.O,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL},
             description = "Toggle ontop for the client",
             on_release = function(c)
@@ -644,6 +685,7 @@ this.keybindings = {
         }),
         awful.key({
             key = ks.P,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL},
             description = "Toggle sticky for the client",
             on_release = function(c)
@@ -653,7 +695,19 @@ this.keybindings = {
         }),
 -- =========================================================>
         awful.key({
+            key = ks.F,
+            group = "client",
+            modifiers = {ks.MOD, ks.CTRL},
+            description = "Toggle fullscreen for the client",
+            on_release = function(c)
+                c.fullscreen = not c.fullscreen
+                return c:raise() --> Proper tail call
+            end
+        }),
+-- =========================================================>
+        awful.key({
             key = ks.M,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL},
             description = "Toggle maximize for the client",
             on_release = function(c)
@@ -663,6 +717,7 @@ this.keybindings = {
         }),
         awful.key({
             key = ks.M,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL, ks.ALT},
             description = "Toggle maximize horizontal for the client",
             on_release = function(c)
@@ -672,6 +727,7 @@ this.keybindings = {
         }),
         awful.key({
             key = ks.M,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL, ks.SHIFT},
             description = "Toggle maximize vertical for the client",
             on_release = function(c)
@@ -681,7 +737,17 @@ this.keybindings = {
         }),
 -- =========================================================>
         awful.key({
+            key = ks.A,
+            group = "client",
+            modifiers = {ks.MOD, ks.CTRL},
+            description = "Move client to master",
+            on_release = function(c)
+                return c:swap(awful.client.getmaster()) --> Proper tail call
+            end
+        }),
+        awful.key({
             key = ks.C,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL},
             description = "Center the client",
             on_release = function(c)
@@ -693,39 +759,53 @@ this.keybindings = {
         }),
 -- =========================================================>
         awful.key({
-            key = ks.Q,
+            key = ks.RIGHT,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL},
-            description = "Kill client using the X11 Protocol",
+            description = "Cycle client to the right trough tags",
             on_release = function(c)
-                return c:kill() --> Proper tail call
+                --> Check if the current tag exists
+                if (c.first_tag) then
+                    local next_tag = c.screen.tags[(c.first_tag.index % (#c.screen.tags)) + 1]
+                    --> Check if the next tag exists
+                    if (next_tag) then
+                        return c:move_to_tag(next_tag) --> Proper tail call
+                    end
+                end
             end
         }),
-
+        awful.key({
+            key = ks.LEFT,
+            group = "client",
+            modifiers = {ks.MOD, ks.CTRL},
+            description = "Cycle client to the left trough tags",
+            on_release = function(c)
+                --> Check if the current tag exists
+                if (c.first_tag) then
+                    local next_tag = nil
+                    --> Cycle around tags
+                    if (c.first_tag.index == 1) then
+                        next_tag = c.screen.tags[(#c.screen.tags)]
+                    else
+                        next_tag = c.screen.tags[c.first_tag.index - 1]
+                    end
+                    --> Check if the next tag exists
+                    if (next_tag) then
+                        return c:move_to_tag(next_tag) --> Proper tail call
+                    end
+                end
+            end
+        }),
 -- =========================================================>
         awful.key({
-            key = ks.PLUS,
+            key = ks.S,
+            group = "client",
             modifiers = {ks.MOD, ks.CTRL},
-            description = "Upscale client by 0.05",
+            description = "Cycle client trough screens",
             on_release = function(c)
-                return awful.placement.scale(c, {
-                    by_percent = 0.05
-                }) --> Proper tail call
+                return c:move_to_screen() --> Proper tail call
             end
-        }), -- LOOKOUT
-        awful.key({
-            key = ks.MINUS,
-            modifiers = {ks.MOD, ks.CTRL},
-            description = "Downscale client by 0.05",
-            on_release = function(c)
-                return awful.placement.scale(c, {
-                    by_percent = -0.05
-                }) --> Proper tail call
-            end
-        }) -- LOOKOUT
-
-        --"move to master"
-        --"move to screen cycling"
-        --minimize and hide
+        })
 -- =========================================================>
     }
 }

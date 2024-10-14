@@ -49,11 +49,11 @@ function this:init(s)
         local current = self.clocks[s.index]
 
         -->> Code shortening declarations
-        local config = beautiful.clock(s)
+        local config = beautiful.clock
         local link_to = function(widget, key)
             return link.to(current.widget, widget, key) --> Proper tail call
         end
-        local taskbar_height = dpi(beautiful.taskbar(s).height, s)
+        local taskbar_height = dpi(beautiful.taskbar.height, s)
 
         -->> Current object index
         current.index = (config.index or 1)
@@ -170,7 +170,7 @@ function this:init(s)
                                         margins = mysc.dpi(config.margins, s),
                                         widget = wibox.container.margin
                                     },
-                                    bg = beautiful.color(s).static.transparent,
+                                    bg = beautiful.color.static.transparent,
                                     shape = mysc.shape("rounded_rect", (taskbar_height/2), s),
                                     buttons = {
                                         awful.button({
@@ -212,8 +212,8 @@ function this:init(s)
                                     widget = wibox.container.background
                                 }, "main"
                             )
-                        ), {bg = beautiful.color(s).static.click}
-                    ), {cursor = beautiful.cursor.button, bg = beautiful.color(s).static.hover}
+                        ), {bg = beautiful.color.static.click}
+                    ), {cursor = beautiful.cursor.button, bg = beautiful.color.static.hover}
                 ), function() return current.timers.home:start() end, "mouse::leave", (not current.timers.home)
             ), function() return current.timers.home:stop() end, "mouse::enter", (not current.timers.home)
         ) --> Proper tail call
@@ -234,7 +234,7 @@ function this:reset(s, restart)
         --> Restarts the widget if needed
         if (restart) then
             --> Current screen-specific configuration
-            local config = beautiful.clock(s)
+            local config = beautiful.clock
             --> Ensure the object's state
             --> remains the same trough restarts
             config.state = current.widget.tooltip.visible

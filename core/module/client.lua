@@ -15,6 +15,7 @@
 -- =========================================================>
 local require = require
 -- =========================================================>
+require("awful.autofocus")
 local beautiful = require("beautiful")
 local dpi = beautiful.xresources.apply_dpi
 -- =========================================================>
@@ -29,7 +30,7 @@ local bling = require("lib.bling")
 --  [Imports] Optimization:
 -- =========================================================>
 local next = next
-local client = client
+local client = client --> Awesome Global
 -- =========================================================>
 --  [Table] This:
 -- =========================================================>
@@ -41,16 +42,16 @@ local this = {}
 -- =========================================================>
 function this.func(c)
     --> Code shortening declarations
-    local config = beautiful.client(c.screen)
+    local config = beautiful.client
     --> Set client properties
     c.shape = config.shape
     c.border_width =  config.border.thickness
     if (c.active) then
         --> Set beautiful snap properties
         beautiful.snap_shape = config.snap.shape
-        beautiful.snapper_gap = dpi(config.snap.gap, s)
+        beautiful.snapper_gap = dpi(config.snap.gap, c.screen)
         beautiful.snap_bg = table.get_dynamic(config.snap.color)
-        beautiful.snap_border_width = dpi(config.snap.thickness, s)
+        beautiful.snap_border_width = dpi(config.snap.thickness, c.screen)
         --> Set border color
         c.border_color = table.get_dynamic(config.border.color.focused)
         return bling.module.flash_focus.flashfocus(c) --> Proper tail call
@@ -72,8 +73,16 @@ end
 function this:init()
     -->> Enable client autofocus
     if (beautiful.client.autofocus) then
-        print("DONE")
-        require("awful.autofocus")
+        client.connect_signal(
+            "mouse::enter", 
+            function(c)
+                return c:emit_signal(
+                    "request::activate",
+                    "mouse_enter",
+                    {raise = false}
+                ) --> Proper tail call
+            end
+        )
     end
     -->> Connect focus signal
     client.connect_signal("focus", self.func)
@@ -89,15 +98,13 @@ function this:init()
     return client.connect_signal("property::screen", self.func) --> Proper tail call
 end
 -- =========================================================>
---> Resets the clients in screen (s) with (restart):
+--> Resets the clients with (restart):
 -- =========================================================>
-function this:reset(s, restart)
+function this:reset(restart)
     --> Restarts the object if needed
     if (restart) then
-        --> Code shortening declaration
-        local config = beautiful.client(s)
-        --> Set properties for each client in s
-        for _,c in next, s.clients do
+        --> Set properties for each client
+        for _,c in next, client.get() do
             self.func(c)
         end
     else

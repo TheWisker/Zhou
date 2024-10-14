@@ -1,1 +1,1 @@
-/home/wisker/.cache/wal/colors.lua
+~/.cache/wal/colors.lua

@@ -53,14 +53,14 @@ function this:init(s)
         local current = self.taglists[s.index]
 
         --> Code shortening declarations
-        local config = beautiful.taglist(s)
+        local config = beautiful.taglist
         local link_fn = function(func, key)
             return link.to(current.func, func, key) --> Proper tail call
         end
         local link_to = function(widget, key)
             return link.to(current.widget, widget, key) --> Proper tail call
         end
-        local taskbar_height = dpi(beautiful.taskbar(s).height, s)
+        local taskbar_height = dpi(beautiful.taskbar.height, s)
 
         -->> Disabled guard
         if (not config.enabled) then
@@ -135,7 +135,7 @@ function this:init(s)
                                 current.widget.focused.image = beautiful.theme_assets.awesome_icon(
                                     (taskbar_height * 0.6),
                                     table.get_dynamic(config.focused.color),
-                                    table.get_dynamic(beautiful.color(S).dynamic.background)
+                                    table.get_dynamic(beautiful.color.dynamic.background)
                                 )
                             end
                         end, "unfocus"
@@ -154,7 +154,7 @@ function this:init(s)
                         image = (client.focus and client.focus.icon) or beautiful.theme_assets.awesome_icon(
                             (taskbar_height * 0.6),
                             table.get_dynamic(config.focused.color),
-                            table.get_dynamic(beautiful.color(s).dynamic.background)
+                            table.get_dynamic(beautiful.color.dynamic.background)
                         ),
                         widget = wibox.widget.imagebox
                     }, "focused"
@@ -196,7 +196,7 @@ function this:init(s)
                                             event.connect(
                                                 event.connect(
                                                     self,
-                                                    function() return signal.shadow.hide(tag) end, "mouse::leave"
+                                                    function() return signal.shadow.hide() end, "mouse::leave"
                                                 ), function() return signal.shadow.show(tag) end, "mouse::enter"
                                             )
 

@@ -31,10 +31,6 @@ local color = require("util.color")
 local event = require("util.event")
 local table = require("util.table")
 -- =========================================================>
---  [Imports] Libraries:
--- =========================================================>
-local rubato = require("lib.rubato")
--- =========================================================>
 --  [Imports] Raven:
 -- =========================================================>
 local calendar = require("module.desktop.taskbar.raven.calendar")
@@ -56,8 +52,8 @@ function this:init(s)
         local current = self.ravens[s.index]
 
         -->> Code shortening declarations
-        local config = beautiful.raven(s)
-        local taskbar = beautiful.taskbar(s)
+        local config = beautiful.raven
+        local taskbar = beautiful.taskbar
         local spacing = dpi(beautiful.spacing, s)
         local link_to = function(widget, key)
             return link.to(current.widget, widget, key) --> Proper tail call
@@ -94,62 +90,13 @@ function this:init(s)
             open = function()
                 current.state = true
                 current.widget.main.visible = true
-                if (current.animation) then
-                    current.animations.opacity.target = 1
-                else
-                    --> Change the bg's opacity instead of widgets opacity
-                    --> as the latter does not have any effect on the widget
-                    current.widget.main.bg = gears.color.change_opacity(
-                        table.get_dynamic(config.color.background),
-                        1
-                    )
-                    current.widget.margin.opacity = 1
-                end
             end,
             -->> Close the object throught its animation
             close = function()
                 current.state = false
-                if (current.animation) then
-                    current.animations.opacity.target = 0
-                else
-                    current.widget.main.visible = false
-                end
+                current.widget.main.visible = false
             end
         }
-
-        -->> Animation guard
-        if (beautiful.animation.widget.enabled) then
-            -->> Current object animations
-            current.animations = {
-                -->> Object opacity in-and-out animation
-                opacity = rubato.timed({
-                    rate = beautiful.animation.fps,
-                    --> Opacity must be jumpstarted
-                    --> according to current object state
-                    pos = (current.state and config.opacity or 0),
-                    easing = beautiful.animation.widget.raven.easing,
-                    duration = beautiful.animation.widget.raven.duration,
-                    subscribed = function(pos)
-                        --> Change the bg's opacity instead of widgets opacity
-                        --> as the latter does not have any effect on the widget
-                        current.widget.main.bg = gears.color.change_opacity(
-                            table.get_dynamic(config.color.background),
-                            pos
-                        )
-                        --> Object child widget opacity must also be animated
-                        --> in order to also affect all the object's children
-                        --> This division always ensures opacity will reach 1
-                        current.widget.margin.opacity = (pos / config.opacity)
-                    end,
-                    end_callback = function(pos)
-                        --> On 'out' completion make the widget not visible
-                        if (pos == 0) then
-                            current.widget.main.visible = false
-                        end
-                    end
-                })
-            }
-        end
 
         -->> Timer guard
         if (config.timeout and (config.timeout ~= 0)) then
@@ -213,10 +160,9 @@ function this:init(s)
                                         font = beautiful.fonts.main(config.title.font_size),
                                         widget = wibox.widget.textbox
                                     },
-                                    --calendar:init(s),
-                                    --sliders:make(),
+                                    calendar:init(s),
                                     --toggles:make(),
-                                    spacing = dpi(20, s),
+                                    spacing = dpi(35, s),
                                     layout = wibox.layout.fixed.vertical
                                 },
                                 margins = (size.width/10),
@@ -248,7 +194,7 @@ function this:init(s)
                         },
                         forced_width = taskbar.height.normal,
                         forced_height = taskbar.height.normal,
-                        bg = beautiful.color(s).static.transparent,
+                        bg = beautiful.color.static.transparent,
                         shape = mysc.shape("rounded_rect", (taskbar.height.normal/2), s),
                         buttons = awful.button({
                             modifiers = {},
@@ -257,8 +203,8 @@ function this:init(s)
                             on_release = current.actions.switch
                         }),
                         widget = wibox.container.background
-                    }, {bg = beautiful.color(s).static.click}
-                ), {cursor = beautiful.cursor.button, bg = beautiful.color(s).static.hover}
+                    }, {bg = beautiful.color.static.click}
+                ), {cursor = beautiful.cursor.button, bg = beautiful.color.static.hover}
             ), "evoker"
         ) --> Proper tail call
     end
@@ -275,16 +221,18 @@ function this:reset(s, restart)
     if (current) then
         --> Remove references to the object on our end
         self.ravens[s.index] = nil
+        --> Reset independent child widgets
+        calendar:reset(s, restart) --> Calendar widget
         --> Restarts the widget if needed
         if (restart) then
             --> Current screen-specific configuration
-            local config = beautiful.raven(s)
+            local config = beautiful.raven
             --> Ensure the object's state
             --> remains the same trough restarts
             config.state = current.state
             --> Ensure the object's timer
             --> remains the same trough restarts
-            config.timer = current.timer.started
+            config.timer = (current.timer and current.timer.started)
             --> Initialize the new object
             self:init(s)
         end

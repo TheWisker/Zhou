@@ -118,13 +118,13 @@ function this:init(s)
         local current = self.terminals[s.index]
 
         -->> Code shortening declarations
-        local config = beautiful.terminal(s)
+        local config = beautiful.terminal
         local link_to = function(widget, key)
             return link.to(current.widget, widget, key) --> Proper tail call
         end
         local size = {
             width = dpi(config.size, s),
-            height = dpi(beautiful.taskbar(s).height, s)
+            height = dpi(beautiful.taskbar.height, s)
         }
 
         -->> Current object state
@@ -169,10 +169,10 @@ function this:init(s)
                     text = config.text,
                     history_max = config.history,
                     textbox = current.widget.prompt,
-                    font = beautiful.fonts.main("S"),--btfl
                     done_callback = current.actions.close,
-                    prompt = config.format.prompt(config.prompt.prefix),
                     bg_cursor = table.get_dynamic(config.color.cursor),
+                    prompt = config.format.prompt(config.prompt.prefix),
+                    font = beautiful.fonts.main(config.prompt.font_size),
                     history_path = gears.filesystem.get_cache_dir() .. "/prompt.ch",
                     -->> Command (c) on-change callback
                     changed_callback = function()
@@ -383,7 +383,7 @@ function this:init(s)
                                     },
                                     forced_width = size.height,
                                     forced_height = size.height,
-                                    bg = beautiful.color(s).static.transparent,
+                                    bg = beautiful.color.static.transparent,
                                     shape = mysc.shape("rounded_rect", (size.height/2), s),
                                     buttons = awful.button({
                                         modifiers = {},
@@ -394,8 +394,8 @@ function this:init(s)
                                         on_release = current.actions.switch
                                     }),
                                     widget = wibox.container.background
-                                }, {bg = beautiful.color(s).static.click}
-                            ), {cursor = beautiful.cursor.button, bg = beautiful.color(s).static.hover}
+                                }, {bg = beautiful.color.static.click}
+                            ), {cursor = beautiful.cursor.button, bg = beautiful.color.static.hover}
                         ),
                         layout = wibox.layout.fixed.horizontal
                     }, "main"
@@ -419,7 +419,7 @@ function this:reset(s, restart)
         --> Restarts the widget if needed
         if (restart) then
             --> Current screen-specific configuration
-            local config = beautiful.terminal(s)
+            local config = beautiful.terminal
             --> Ensure the object's state
             --> remains the same trough restarts
             config.state = current.state

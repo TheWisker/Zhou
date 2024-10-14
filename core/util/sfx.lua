@@ -126,7 +126,6 @@ local function setup(w, sfx, e)
         )
     )
 
-    local gears = require("gears")
     -->> Connect 'off' signal
     w:weak_connect_signal(
         config.trigger.off,
@@ -175,7 +174,7 @@ end
 function this.on_hover(w, sfx, off)
     --> Make w a widget if it is not one
     w = mysc.to_widget(w)
-    if not off then
+    if (not off) then
         --> Set up the events
         return setup(w, sfx, "hover") --> Proper tail call
     end
@@ -188,7 +187,7 @@ end
 function this.on_press(w, sfx, off)
     --> Make w a widget if it is not one
     w = mysc.to_widget(w)
-    if not off then
+    if (not off) then
         --> Set up the events
         return setup(w, sfx, "press") --> Proper tail call
     end

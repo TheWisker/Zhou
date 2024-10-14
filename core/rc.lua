@@ -9,8 +9,8 @@
 
 --[[                  -- Description --                 --[[
 
-      Awesome slick config providing dynamic per-screen
-      configurations that can use pywall to change colors
+      Awesome slick configuration providing dynamic color
+       use pywall to change colors
       with the wallpaper! Everyhting customizable!
 
 ]]--                                                    ]]--
@@ -47,9 +47,10 @@ local notif = require("module.notif")
 local client = require("module.client")
 local desktop = require("module.desktop")
 -- =========================================================>
---  [Imports] Util:
+--  [Imports] Optimization:
 -- =========================================================>
-local table = require("util.table")
+local tag = tag --> Awesome Global
+local awesome = awesome --> Awesome Global
 -- =========================================================>
 --  [Zhou] Configuration:
 -- =========================================================>
@@ -66,21 +67,18 @@ awful.tag.history.limit = 5
 -- =========================================================>
 --> Jump mouse cursor to the corner when resizing client
 -- =========================================================>
-awful.layout.suit.floating.resize_jump_to_corner = true
--- =========================================================>
---> Jump mouse cursor to the corner when resizing client
--- =========================================================>
 awful.layout.suit.tile.resize_jump_to_corner = true
+awful.layout.suit.floating.resize_jump_to_corner = true
 -- =========================================================>
 --> Specifies based on what to select the focused screen
 -- =========================================================>
 awful.screen.default_focused_args = {client = true, mouse = false}
 -- =========================================================>
+--  [Zhou] Initialization:
+-- =========================================================>
 --  Theme Initialization
 -- =========================================================>
-beautiful.init(
-    table.crush(theme_defaults, theme)
-)
+beautiful.init(gears.table.crush(theme_defaults, theme))
 -- =========================================================>
 --  Notification Initialization
 -- =========================================================>
@@ -94,14 +92,13 @@ client:init()
 -- =========================================================>
 bind.bind("global")
 -- =========================================================>
+--  Rules Initialization
+-- =========================================================>
+rule.attach()
+-- =========================================================>
 --  Desktop Initialization
 -- =========================================================>
-awful.screen.connect_for_each_screen(
-    function(s)
-        print("Screen: " .. s.index)
-        desktop.init(s)
-    end
-)
+desktop.init()
 -- =========================================================>
 --  Tag Initialization
 -- =========================================================>
@@ -121,10 +118,19 @@ tag.connect_signal(
 awesome.connect_signal(
     "startup",
     function()
+        --> Startup compositor
+        awful.spawn.with_shell(beautiful.exec.compositor.on)
+        --> Startup applications
+        for _,app in next, beautiful.exec.startup do
+            awful.spawn.with_shell(app)
+        end
+        --> Configure garbage collection
         collectgarbage("incremental", 150, 600, 0)
-        --awful.spawn.with_shell(beautiful.exec.compositor.on)
+        collectgarbage("restart")
+        --> Collect and log current memory
         collectgarbage("collect") --> Collect garbage
         print("Memory in use: " .. (collectgarbage("count") / 1024) .. "Mb")
+        --> Garbage collection timer
         return gears.timer({
             timeout = 300, --> 5 minutes
             call_now = true,
@@ -143,13 +149,10 @@ awesome.connect_signal(
 awesome.connect_signal(
     "exit",
     function()
+        --> Log current memory
         print("Memory in use: " .. (collectgarbage("count") / 1024) .. "Mb")
+        --> Stop compositor cleanly
         return awful.spawn.with_shell(beautiful.exec.compositor.off) --> Proper tail call
     end
 )
---[[
-awful.spawn.with_shell(
-    'if (xrdb -query | grep -q "^awesome\\.started:\\s*true$"); then exit; fi;' ..
-    'xrdb -merge <<< "awesome.started:true";' ..
-    'dex --environment Awesome --autostart --search-paths "${XDG_CONFIG_HOME:-$HOME/.config}/autostart:${XDG_CONFIG_DIRS:-/etc/xdg}/autostart";'
-)]]--
+-- =========================================================>

@@ -11,20 +11,11 @@
 -- =========================================================>
 ----> AwesomeWM Text Utils
 -- =========================================================>
---  [Imports] Awesome:
+--  [Imports] Utils:
 -- =========================================================>
 local require = require
 -- =========================================================>
-local beautiful = require("beautiful")
-
-
-
-
-
-
-
 local table = require("util.table")
-
 -- =========================================================>
 --  [Imports] Optimization:
 -- =========================================================>
@@ -37,7 +28,7 @@ local this = {}
 --  [Functions] Text:
 -- =========================================================>
 function this.clean(s)
-    s = s or ""
+    s = (s or "")
     --> Strangely although '*' and '-' are
     --> equivalent in lua pattern-matching this
     --> does not work if '-' is substituted by a '*'.
@@ -60,8 +51,8 @@ end
 --> without (¬p) pango markup and returns it:
 -- =========================================================>
 function this.capitalize(s, p)
-    s = s or ""
-    if p then
+    s = (s or "")
+    if (p) then
         return "<span text_transform='capitalize'>" .. s .. "</span>"
     end
     return s:gsub("^%l", upper):gsub("%s+%l", upper) --> Proper tail call

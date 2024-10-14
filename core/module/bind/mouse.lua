@@ -25,8 +25,8 @@ local signal = require("module.signal")
 --  [Imports] Optimization:
 -- =========================================================>
 local next = next
-local mouse = mouse
-local client = client
+local mouse = mouse --> Awesome Global
+local client = client --> Awesome Global
 -- =========================================================>
 --  [Imports] Bind - Mouse:
 -- =========================================================>
@@ -67,14 +67,6 @@ this.mousebindings = {
 -- =========================================================>
         group = "desktop",
 -- =========================================================>
-        awful.button({
-            modifiers = {},
-            button = awful.button.names.LEFT,
-            description = "Switch to next wallpaper",
-            on_release = function()
-
-            end
-        }),
         awful.button({
             modifiers = {},
             button = awful.button.names.MIDDLE,

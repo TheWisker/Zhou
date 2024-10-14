@@ -40,9 +40,9 @@ this.rules = {
         id = "global",
         properties = {
             raise = true,
-            shape = mysc.shape("rounded_rect", 15),
             screen = awful.screen.preferred,
             focus = awful.client.focus.filter,
+            shape = mysc.shape("rounded_rect", 15),
             placement = awful.placement.no_overlap + awful.placement.no_offscreen
         }
     },

@@ -37,12 +37,21 @@ this.awesome = {}
 --> Resets the configuration without restarting AwesomeWM:
 -- =========================================================>
 function this.awesome.reset(...)
-    this:import("desktop", "module.desktop")
     this:import("notif", "module.notif")
     this:import("client", "module.client")
+    this:import("desktop", "module.desktop")
     this.package.notif:reset(...)
     this.package.client:reset(...)
-    return this.package.desktop.reset(...) --> Proper tail call
+    this.package.desktop.reset(...) --> Proper tail call
+end
+
+-- =========================================================>
+--> Shows the hotkey help popup for AwesomeWM:
+-- =========================================================>
+function this.awesome.help()
+    this:import("cheatsheet", "module.desktop.cheatsheet")
+
+    return this.package.cheatsheet.cheatsheet.actions.show() --> Proper tail call
 end
 -- =========================================================>
 --  [Functions] Notification Signals:
@@ -63,11 +72,50 @@ function this.notification.assert(...)
     return this.package.notif:assert(...) --> Proper tail call
 end
 -- =========================================================>
+--  [Functions] Taskbar Signals:
+-- =========================================================>
+this.taskbar = {}
+-- =========================================================>
+--> Toggle screen's taskbar or all taskbars:
+-- =========================================================>
+function this.taskbar.toggle(s)
+    this:import("taskbar", "module.desktop.taskbar")
+    if (s) then
+        this.package.taskbar.taskbars[s.index].actions.toggle()
+    else
+        for _,taskbar in next, this.package.taskbar.taskbars do
+            taskbar.actions.toggle()
+        end
+    end
+end
+-- =========================================================>
+--> Set taskbar's progressbar position:
+-- =========================================================>
+function this.taskbar.position(pos, s)
+    this:import("taskbar", "module.desktop.taskbar")
+    if (s) then
+        this.package.taskbar.taskbars[s.index].actions.position(pos)
+    else
+        for _,taskbar in next, this.package.taskbar.taskbars do
+            taskbar.actions.position(pos)
+        end
+    end
+end
+-- =========================================================>
 --  [Functions] Volume Signals:
 -- =========================================================>
 this.volume = {}
 -- =========================================================>
+--> Show the volume popup:
+-- =========================================================>
 function this.volume.show()
+    this:import("volume", "module.desktop.volume")
+
+end
+-- =========================================================>
+--> Hide the volume popup:
+-- =========================================================>
+function this.volume.hide()
     this:import("volume", "module.desktop.volume")
 
 end
@@ -76,69 +124,74 @@ end
 -- =========================================================>
 this.shadow = {}
 -- =========================================================>
---> Open the shadow popup for tag (tag):
+--> Show the shadow popup for tag (tag):
 -- =========================================================>
 function this.shadow.show(tag)
     this:import("shadow", "module.desktop.shadow")
     -->> Shadow guard
-    if (this.package.shadow.shadows[tag.screen.index]) then
-        return this.package.shadow.shadows[tag.screen.index].actions.open(tag) --> Proper tail call
+    if (this.package.shadow.shadow) then
+        return this.package.shadow.shadow.actions.show(tag) --> Proper tail call
     end
 end
 -- =========================================================>
---> Close the shadow popup:
+--> Hide the shadow popup:
 -- =========================================================>
-function this.shadow.hide(tag)
+function this.shadow.hide()
     this:import("shadow", "module.desktop.shadow")
     -->> Shadow guard
-    if (this.package.shadow.shadows[tag.screen.index]) then
-        return this.package.shadow.shadows[tag.screen.index].actions.close() --> Proper tail call
+    if (this.package.shadow.shadow) then
+        return this.package.shadow.shadow.actions.hide() --> Proper tail call
     end
 end
 -- =========================================================>
---  [Functions] Exitscreen Signals:
+--  [Functions] Session Signals:
 -- =========================================================>
-this.exitscreen = {}
+this.session = {}
 -- =========================================================>
-function this.exitscreen.show()
-    this:import("exitscreen", "module.desktop.exitscreen")
-
+--> Show the session menu:
+-- =========================================================>
+function this.session.show()
+    this:import("session", "module.desktop.session")
+    return this.package.session.session.actions.show() --> Proper tail call
 end
 -- =========================================================>
-function this.exitscreen.hide()
-    this:import("exitscreen", "module.desktop.exitscreen")
-
+--> Hide the session menu:
+-- =========================================================>
+function this.session.hide()
+    this:import("session", "module.desktop.session")
+    return this.package.session.session.actions.hide() --> Proper tail call
 end
 -- =========================================================>
 --  [Functions] Wallpaper Signals:
 -- =========================================================>
 this.wallpaper = {}
 -- =========================================================>
---> Retrieves the current wallpaper in use for screen (s):
+--> Retrieves the current wallpaper in use:
 -- =========================================================>
-function this.wallpaper.get(s)
+function this.wallpaper.get()
     this:import("wallpaper", "module.desktop.wallpaper")
-    return this.package.wallpaper.wallpapers[s.index].wallpaper
+    return this.package.wallpaper.wallpaper.wallpaper
 end
 -- =========================================================>
---> Sets the next wallpaper for screen (s):
+--> Sets the next wallpaper:
 -- =========================================================>
-function this.wallpaper.next(s)
+function this.wallpaper.next()
     this:import("wallpaper", "module.desktop.wallpaper")
-    return this.package.wallpaper.wallpapers[s.index].actions.set(
-        this.package.wallpaper.wallpapers[s.index].actions.get()
+    return this.package.wallpaper.wallpaper.actions.set(
+        this.package.wallpaper.wallpaper.actions.get()
     ) --> Proper tail call
 end
 -- =========================================================>
---> Toggles the wallpaper timers, if any, for screen (s):
+--> Toggles the wallpaper timer, if any:
 -- =========================================================>
-function this.wallpaper.pause(s)
+function this.wallpaper.pause()
     this:import("wallpaper", "module.desktop.wallpaper")
-    if (this.package.wallpaper.wallpapers[s.index].timer) then
-        if (this.package.wallpaper.wallpapers[s.index].timer.started) then
-            return this.package.wallpaper.wallpapers[s.index].timer:stop() --> Proper tail call
+    local timer = this.package.wallpaper.wallpaper.timer
+    if (timer) then
+        if (timer.started) then
+            return timer:stop() --> Proper tail call
         else
-            return this.package.wallpaper.wallpapers[s.index].timer:start() --> Proper tail call
+            return timer:start() --> Proper tail call
         end
     end
 end

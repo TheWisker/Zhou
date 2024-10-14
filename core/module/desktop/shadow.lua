@@ -14,7 +14,6 @@
 
 --> set border color correctly for clients
 --> fails to set in preview location of sticky clients when in another tag
---> Paint a taskbar
 
 -- =========================================================>
 --  [Imports] Awesome:
@@ -33,7 +32,6 @@ local signal = require("module.signal")
 -- =========================================================>
 --  [Imports] Utils:
 -- =========================================================>
-local sfx = require("util.sfx")
 local mysc = require("util.mysc")
 local link = require("util.link")
 local text = require("util.text")
@@ -44,7 +42,6 @@ local table = require("util.table")
 --  [Imports] Libraries:
 -- =========================================================>
 local cairo = require("lgi").cairo
-local rubato = require("lib.rubato")
 -- =========================================================>
 --  [Imports] Optimization:
 -- =========================================================>
@@ -52,91 +49,79 @@ local floor = math.floor
 -- =========================================================>
 --  [Table] This:
 -- =========================================================>
-local this = {shadows = {}}
+local this = {shadow = nil}
 -- =========================================================>
 --  [Functions] Shadow:
 -- =========================================================>
---> Initializes the shadow for screen (s):
+--> Initializes the shadow for desktop:
 -- =========================================================>
-function this:init(s)
+function this:init()
     -->> Shadow guard
-    if (not self.shadows[s.index]) then
-        -->> Current screen-specific object reference
-        self.shadows[s.index] = {widget = {}}
-        local current = self.shadows[s.index]
+    if (not self.shadow) then
+        -->> Current object reference
+        self.shadow = {widget = {}}
+        local current = self.shadow
 
         -->> Code shortening declarations
-        local config = beautiful.shadow(s)
+        local config = beautiful.shadow
         local link_to = function(widget, key)
             return link.to(current.widget, widget, key) --> Proper tail call
         end
-        local scale = function(n)
+        local scale = function(n, s)
             return floor(
                 dpi(n * config.preview.scale, s)
             ) --> Proper tail call
         end
 
-        -->> Current object state
-        current.state = ((config.state == nil) and config.glimpse or config.state)
-
         -->> Current object actions
         current.actions = {
-            -->> Open the object throught its animation
-            open = function(tag)
-                current.state = true
+            -->> Show the object
+            show = function(tag)
+                --> Update and then show shadow
                 current.actions.update(tag)
                 current.widget.main.visible = true
-                if (current.animations) then
-                    current.animations.opacity.target = config.opacity
-                else
-                    --> Change the bg's opacity instead of widgets opacity
-                    --> as the latter does not have any effect on the widget
-                    current.widget.main.bg = gears.color.change_opacity(
-                        table.get_dynamic(config.title.color),
-                        config.opacity
-                    )
-                    current.widget.margin.opacity = 1
-                end
+                --> Stop timer if it exists
                 if (current.timer) then
                     return current.timer:stop() --> Proper tail call
                 end
             end,
-            -->> Close the object throught its animation
-            close = function()
-                current.state = false
+            -->> Hide the object
+            hide = function()
+                --> Use timer if it exists
                 if (current.timer) then
                     return current.timer:again() --> Proper tail call
                 else
+                    --> Delete current tag
+                    current.tag = nil
                     current.widget.main.visible = false
                 end
             end,
             -->> Make image preview for tag (tag)
-            image = function(tag)
-                -->> Tag's clients map image
-                local image = wibox.widget({
-                    forced_width = scale(tag.screen.workarea.width),
-                    forced_height = scale(tag.screen.workarea.height),
+            preview = function(tag)
+                -->> Code shortening declarations
+                local s = tag.screen
+                -->> Tag's clients map preview
+                local preview = wibox.widget({
+                    forced_width = scale(tag.screen.workarea.width, s),
+                    forced_height = scale(tag.screen.workarea.height, s),
                     layout = wibox.layout.manual
                 })
-                -->> Code shortening declaration
-                local config = config.preview
-                -->> Declare variable outside the loop
-                local content = nil
+                -->> Declare variables outside the loop
+                local content, context, bounds, surface = nil, nil, nil, nil
                 -->> Loop trough all of tag's clients
                 for _,c in next, tag:clients() do
                     --> If the client is visible on the tag and content must be shown
-                    if (config.show_content and not (c.minimized or c.hidden)) then
+                    if (config.preview.show_content and (not (c.minimized or c.hidden))) then
                         --> If tag is selected or client has previous content
                         if (tag.selected) then
                             --> Get the content for the current client
                             content = gears.surface(c.content) --> Current content
-
                             --> Gets the painting context of the content
-                            local context = cairo.Context(content)
+                            context = cairo.Context(content)
                             --> Gets the bounds of the content from its context
-                            local bounds = {context:clip_extents()}
+                            bounds = {context:clip_extents()}
                             --> Creates a new surface with appropiate bounds
-                            local surface = cairo.ImageSurface.create(
+                            surface = cairo.ImageSurface.create(
                                 cairo.Format.ARGB32,
                                 bounds[3] - bounds[1],
                                 bounds[4] - bounds[2]
@@ -149,7 +134,6 @@ function this:init(s)
                             context.operator = cairo.Operator.SOURCE
                             --> Performs the painting operation
                             context:paint()
-
                             --> Loads the surface to content
                             content = gears.surface(surface)
                             --> Save current content as last known content
@@ -162,16 +146,16 @@ function this:init(s)
                     end
 
                     --> Add client to the preview at scaled coordinates
-                    image:add_at(
+                    preview:add_at(
                         wibox.widget(
                             { --> Widget
                                 {
                                     {
                                         --> Client icons shall not be resized
                                         resize = (content ~= c.icon),
-                                        opacity = config.client.opacity,
+                                        opacity = config.preview.client.opacity,
                                         image = content or beautiful.theme_assets.awesome_icon(
-                                            dpi(config.icon.size, s),
+                                            dpi(config.icon.size),
                                             table.get_dynamic(config.icon.color.main),
                                             table.get_dynamic(beautiful.color.dynamic.background)
                                         ), --> Fallback
@@ -181,90 +165,80 @@ function this:init(s)
                                 },
                                 forced_width = scale(c.width),
                                 forced_height = scale(c.height),
-                                shape_border_width = config.client.thickness,
-                                bg = table.get_dynamic(config.client.color.background),
-                                shape = mysc.shape("rounded_rect", config.client.radius, s),
-                                shape_border_color = table.get_dynamic(config.client.color.border),
+                                shape_border_width = config.preview.client.thickness,
+                                bg = gears.color.change_opacity(
+                                    table.get_dynamic(config.preview.client.color.background),
+                                    config.preview.client.opacity
+                                ),
+                                shape = mysc.shape("rounded_rect", config.preview.client.radius),
+                                shape_border_color = table.get_dynamic(config.preview.client.color.border),
                                 widget = wibox.container.background
                             }
                         ),
                         { --> Coordinates
-                            x = scale(c.x - tag.screen.workarea.x),
-                            y = scale(c.y - tag.screen.workarea.y)
+                            x = scale(c.x - tag.screen.workarea.x, s),
+                            y = scale(c.y - tag.screen.workarea.y, s)
                         }
                     )
                 end
-                -->> Return the image
-                return image
+                -->> Return the preview
+                return preview
             end,
             -->> Update the object for tag (tag)
             update = function(tag)
-                --> Update the title for tag
-                current.widget.title.markup = " " .. config.title.format(tag.name) .. " (" .. tag.gap .. ")"
+                -->> Code shortening declaration
+                local s = tag.screen
 
-                --> Update the preview for tag
-                current.widget.preview_bg.image = signal.wallpaper.get(s)
-                current.widget.preview_box.widget = current.actions.image(tag)
-
-                --> Update the icon for tag
-                current.widget.icon.image = tag.icon and color.image(
-                    tag.icon,
-                    table.get_dynamic(config.icon.color.main)
-                ) or beautiful.theme_assets.awesome_icon(
-                    dpi(config.icon.size, s),
-                    table.get_dynamic(config.icon.color.main),
-                    table.get_dynamic(beautiful.color(s).dynamic.background)
+                local image = function(img, c)
+                    return img and color.image(img, table.get_dynamic(c)) or
+                    beautiful.theme_assets.awesome_icon(
+                        dpi(config.icon.size),
+                        table.get_dynamic(c),
+                        table.get_dynamic(beautiful.color.dynamic.background)
+                    )
+                end
+                -->> Main widget properties
+                current.widget.main.screen = s
+                current.widget.main.placement = mysc.placement(
+                    "bottom_right",
+                    {
+                        margins = {
+                            right = dpi(config.spacing, s),
+                            bottom = dpi(config.spacing + beautiful.taskbar.height, s)
+                        }
+                    }
                 )
-
-                --> Update the layout for tag
-                current.widget.layout.image = beautiful["layout_" .. awful.layout.getname(tag.layout)] and
-                color.image(
-                    beautiful["layout_" .. awful.layout.getname(tag.layout)], --WIP
-                    table.get_dynamic(config.icon.color.sub)
-                ) or beautiful.theme_assets.awesome_icon(
-                    dpi(config.icon.size, s) * 0.5,
-                    table.get_dynamic(config.icon.color.sub),
-                    table.get_dynamic(beautiful.color(s).dynamic.background)
-                ) --WIP
-
-                --> Set tag as current tag
+                -->> Title widget properties
+                current.widget.title.markup = text.color(
+                    config.title.format(tag.name) .. " (" .. tag.gap .. ")",
+                    config.title.color
+                )
+                -->> Preview widget properties
+                current.widget.preview_bg.image = signal.wallpaper.get()
+                current.widget.preview_bg.forced_width = scale(s.geometry.width, s)
+                current.widget.preview_bg.forced_height = scale(s.geometry.height, s)
+                current.widget.preview_box.widget = current.actions.preview(tag)
+                --> Pushes inwards the actual workarea client preview into place
+                current.widget.preview_box.margins = {
+                    --> Push from the top until where the workarea starts
+                    top = scale(s.workarea.y, s),
+                    --> Push from the right the remaing distance from the workarea's end to the end of the screen
+                    right = scale(s.geometry.width - (s.workarea.x + s.workarea.width), s),
+                    --> Push from the bottom the remaing distance from the workarea's end to the end of the screen
+                    bottom = scale(s.geometry.height - (s.workarea.y + s.workarea.height), s),
+                    --> Push from the left until where the workarea starts
+                    left = scale(s.workarea.x, s)
+                }
+                current.widget.preview_constraint.width = scale(s.geometry.width, s)
+                current.widget.preview_constraint.height = scale(s.geometry.height, s)
+                -->> Icon widget properties
+                current.widget.icon.image = image(tag.icon, config.icon.color.main)
+                -->> Layout widget properties
+                current.widget.layout.image = image(beautiful.icon.image.layout[awful.layout.getname(tag.layout)], config.icon.color.sub)
+                -->> Set tag as current tag
                 current.tag = tag
             end
         }
-
-        -->> Animation guard
-        if (beautiful.animation.widget.enabled) then
-            -->> Current object animations
-            current.animations = {
-                -->> Object opacity in-and-out animation
-                opacity = rubato.timed({
-                    rate = beautiful.animation.fps,
-                    --> Opacity must be jumpstarted
-                    --> according to current object state
-                    pos = (current.state and config.opacity or 0),
-                    easing = beautiful.animation.widget.shadow.easing,
-                    duration = beautiful.animation.widget.shadow.duration,
-                    subscribed = function(pos)
-                        --> Change the bg's opacity instead of widgets opacity
-                        --> as the latter does not have any effect on the widget
-                        current.widget.main.bg = gears.color.change_opacity(
-                            table.get_dynamic(config.title.color),
-                            pos
-                        )
-                        --> Object child widget opacity must also be animated
-                        --> in order to also affect all the object's children
-                        --> This division always ensures opacity will reach 1
-                        current.widget.margin.opacity = (pos / config.opacity)
-                    end,
-                    end_callback = function(pos)
-                        --> On 'out' completion make the widget not visible
-                        if (pos == 0) then
-                            current.widget.main.visible = false
-                        end
-                    end
-                })
-            }
-        end
 
         -->> Timer guard
         if (config.timeout and (config.timeout ~= 0)) then
@@ -273,16 +247,33 @@ function this:init(s)
                 call_now = false,
                 single_shot = true,
                 timeout = config.timeout,
-                autostart = ((config.timer == nil) and config.glimpse or config.timer),
+                autostart = config.timer,
                 -->> Timer on-timeout callback
                 callback = function()
-                    if (current.animations) then
-                        current.animations.opacity.target = 0
-                    else
-                        current.widget.main.visible = false
-                    end
+                    --> Delete current tag
+                    current.tag = nil
+                    current.widget.main.visible = false
                 end
             })
+        end
+
+        -->> Glimpse startup action
+        if (config.glimpse) then
+            -->> Delay glimpse action to allow loading theme completely
+            gears.timer({
+                timeout = 2,
+                call_now = false,
+                autostart = true,
+                single_shot = true,
+                -->> Timer on-timeout callback
+                callback = function()
+                    --> Timer should exist for achieving glimpse effect
+                    current.actions.show(awful.screen.focused().selected_tag)
+                    return current.actions.hide() --> Proper tail call
+                end
+            })
+            -->> Only once per session
+            config.glimpse = false
         end
 
         -->> Current object widget
@@ -290,173 +281,137 @@ function this:init(s)
             event.connect(
                 event.connect(
                     awful.popup({
-                        screen = s,
                         ontop = true,
                         type = "popup_menu",
                         cursor = config.cursor,
-                        visible = current.state,
+                        visible = config.state or false,
                         --> Needed as popup.opacity does not
                         --> seem to have any effect on the bg
                         bg = gears.color.change_opacity(
-                            table.get_dynamic(config.title.color),
-                            --> Opacity must be jumpstarted
-                            --> according to visibility state
-                            (current.state and config.opacity or 0)
+                            table.get_dynamic(config.background),
+                            config.opacity
                         ),
-                        shape = mysc.shape("rounded_rect", config.radius, s),
-                        placement = mysc.placement("bottom_right", {
-                            margins = {
-                                right = dpi(config.spacing, s),
-                                bottom = dpi(config.spacing + beautiful.taskbar(s).height, s)
-                            }
-                        }),
-                        widget = link_to(
+                        placement = awful.placement.bottom_right,
+                        shape = mysc.shape("rounded_rect", config.radius),
+                        widget = {
                             {
-                                {
+                                link_to(
+                                    {
+                                        font = beautiful.fonts.main(config.title.font_size),
+                                        widget = wibox.widget.textbox
+                                    }, "title"
+                                ),
+                                margins = mysc.margins(10, 15),
+                                widget = wibox.container.margin
+                            },
+                            {
+                                link_to(
                                     {
                                         {
-                                            {
-                                                markup = config.title.prefix,
-                                                font = beautiful.fonts.main(config.title.size),
-                                                widget = wibox.widget.textbox
-                                            },
                                             link_to(
                                                 {
-                                                    font = beautiful.fonts.main(config.title.size),
-                                                    widget = wibox.widget.textbox
-                                                }, "title"
+                                                    auto_dpi = true,
+                                                    halign = "center",
+                                                    scaling_quality = "best",
+                                                    --> If there are no margins then the shape is better of as a rectangle
+                                                    clip_shape = (config.preview.margins and (config.preview.margins ~= 0)) and
+                                                        mysc.shape("rounded_rect", config.radius),
+                                                    widget = wibox.widget.imagebox
+                                                }, "preview_bg"
                                             ),
-                                            layout = wibox.layout.fixed.horizontal
+                                            link_to(
+                                                {
+                                                    widget = wibox.container.margin
+                                                }, "preview_box"
+                                            ),
+                                            layout = wibox.layout.stack
                                         },
-                                        margins = mysc.margins(10, 25, s),
-                                        widget = wibox.container.margin
-                                    },
+                                        strategy = "exact",
+                                        widget = wibox.container.constraint
+                                    }, "preview_constraint"
+                                ),
+                                {
+                                    nil, nil,
                                     {
+                                        nil, nil,
                                         {
                                             {
-                                                link_to(
-                                                    {
-                                                        auto_dpi = true,
-                                                        halign = "center",
-                                                        scaling_quality = "best",
-                                                        forced_width = scale(s.geometry.width),
-                                                        forced_height = scale(s.geometry.height),
-                                                        --> If there are no margins then the shape is better of as a rectangle
-                                                        clip_shape = (config.margins and (config.margins ~= 0)) and
-                                                            mysc.shape("rounded_rect", config.radius, s),
-                                                        widget = wibox.widget.imagebox
-                                                    }, "preview_bg"
-                                                ),
-                                                link_to(
-                                                    {
-                                                        --> Pushes inwards the actual workarea client preview into place
-                                                        margins = {
-                                                            --> Push from the top until where the workarea starts
-                                                            top = scale(s.workarea.y),
-                                                            --> Push from the right the remaing distance from the workarea's end to the end of the screen
-                                                            right = scale(s.geometry.width - (s.workarea.x + s.workarea.width)),
-                                                            --> Push from the bottom the remaing distance from the workarea's end to the end of the screen
-                                                            bottom = scale(s.geometry.height - (s.workarea.y + s.workarea.height)),
-                                                            --> Push from the left until where the workarea starts
-                                                            left = scale(s.workarea.x)
-                                                        },
-                                                        widget = wibox.container.margin
-                                                    }, "preview_box"
-                                                ),
-                                                layout = wibox.layout.stack
-                                            },
-                                            strategy = "exact",
-                                            width = scale(s.geometry.width),
-                                            height = scale(s.geometry.height),
-                                            widget = wibox.container.constraint
-                                        },
-                                        {
-                                            nil, nil,
-                                            {
-                                                nil, nil,
                                                 {
                                                     {
                                                         {
-                                                            {
+                                                            link_to(
                                                                 {
-                                                                    link_to(
-                                                                        {
-                                                                            auto_dpi = true,
-                                                                            halign = "center",
-                                                                            scaling_quality = "best",
-                                                                            forced_width = dpi(config.icon.size, s),
-                                                                            forced_height = dpi(config.icon.size, s),
-                                                                            widget = wibox.widget.imagebox
-                                                                        }, "icon"
-                                                                    ),
-                                                                    margins = dpi(config.icon.size * 0.1, s),
-                                                                    widget = wibox.container.margin
-                                                                },
-                                                                shape = config.icon.shape,
-                                                                bg = beautiful.color(s).static.widget,
-                                                                widget = wibox.container.background
-                                                            },
-                                                            strategy = "exact",
-                                                            width = dpi(config.icon.size, s),
-                                                            height = dpi(config.icon.size, s),
-                                                            widget = wibox.container.constraint
+                                                                    auto_dpi = true,
+                                                                    halign = "center",
+                                                                    scaling_quality = "best",
+                                                                    clip_shape = config.icon.shape,
+                                                                    forced_width = dpi(config.icon.size),
+                                                                    forced_height = dpi(config.icon.size),
+                                                                    widget = wibox.widget.imagebox
+                                                                }, "icon"
+                                                            ),
+                                                            margins = dpi(config.icon.size * 0.1),
+                                                            widget = wibox.container.margin
                                                         },
-                                                        {
-                                                            nil, nil,
-                                                            {
-                                                                nil, nil,
-                                                                {
-                                                                    {
-                                                                        link_to(
-                                                                            {
-                                                                                auto_dpi = true,
-                                                                                halign = "center",
-                                                                                scaling_quality = "best",
-                                                                                forced_width = dpi(config.icon.size * 0.5, s),
-                                                                                forced_height = dpi(config.icon.size * 0.5, s),
-                                                                                widget = wibox.widget.imagebox
-                                                                            }, "layout"
-                                                                        ),
-                                                                        margins = dpi(config.icon.size * 0.1, s),
-                                                                        widget = wibox.container.margin
-                                                                    },
-                                                                    shape = config.icon.shape,
-                                                                    bg = beautiful.color(s).static.widget,
-                                                                    forced_width = dpi(config.icon.size * 0.5, s),
-                                                                    forced_height = dpi(config.icon.size * 0.5, s),
-                                                                    widget = wibox.container.background
-                                                                },
-                                                                expand = "none",
-                                                                layout = wibox.layout.align.horizontal
-                                                            },
-                                                            expand = "none",
-                                                            layout = wibox.layout.align.vertical
-                                                        },
-                                                        layout = wibox.layout.stack
+                                                        shape = config.icon.shape,
+                                                        bg = beautiful.color.static.widget,
+                                                        widget = wibox.container.background
                                                     },
-                                                    margins = {
-                                                        right = (scale(s.geometry.height)/15),
-                                                        bottom = (scale(s.geometry.height)/15)
-                                                    },
-                                                    widget = wibox.container.margin
+                                                    strategy = "exact",
+                                                    width = dpi(config.icon.size),
+                                                    height = dpi(config.icon.size),
+                                                    widget = wibox.container.constraint
                                                 },
-                                                expand = "none",
-                                                layout = wibox.layout.align.horizontal
+                                                {
+                                                    nil, nil,
+                                                    {
+                                                        nil, nil,
+                                                        {
+                                                            {
+                                                                link_to(
+                                                                    {
+                                                                        auto_dpi = true,
+                                                                        halign = "center",
+                                                                        scaling_quality = "best",
+                                                                        clip_shape = config.icon.shape,
+                                                                        forced_width = dpi(config.icon.size * 0.5),
+                                                                        forced_height = dpi(config.icon.size * 0.5),
+                                                                        widget = wibox.widget.imagebox
+                                                                    }, "layout"
+                                                                ),
+                                                                margins = dpi(config.icon.size * 0.1),
+                                                                widget = wibox.container.margin
+                                                            },
+                                                            shape = config.icon.shape,
+                                                            bg = beautiful.color.static.widget,
+                                                            forced_width = dpi(config.icon.size * 0.5),
+                                                            forced_height = dpi(config.icon.size * 0.5),
+                                                            widget = wibox.container.background
+                                                        },
+                                                        expand = "none",
+                                                        layout = wibox.layout.align.horizontal
+                                                    },
+                                                    expand = "none",
+                                                    layout = wibox.layout.align.vertical
+                                                },
+                                                layout = wibox.layout.stack
                                             },
-                                            expand = "none",
-                                            layout = wibox.layout.align.vertical
+                                            margins = {
+                                                right = dpi(config.icon.size/2),
+                                                bottom = dpi(config.icon.size/2)
+                                            },
+                                            widget = wibox.container.margin
                                         },
-                                        layout = wibox.layout.stack
+                                        expand = "none",
+                                        layout = wibox.layout.align.horizontal
                                     },
-                                    layout = wibox.layout.fixed.vertical
+                                    expand = "none",
+                                    layout = wibox.layout.align.vertical
                                 },
-                                margins = config.margins,
-                                --> Opacity must be jumpstarted
-                                --> according to current object state
-                                opacity = (current.state and 1 or 0),
-                                widget = wibox.container.margin
-                            }, "margin"
-                        )
+                                layout = wibox.layout.stack
+                            },
+                            layout = wibox.layout.fixed.vertical
+                        }
                     }), function() return current.timer:start() end, "mouse::leave", (not current.timer)
                 ), function() return current.timer:stop() end, "mouse::enter", (not current.timer)
             ), "main"
@@ -464,30 +419,30 @@ function this:init(s)
     end
 end
 -- =========================================================>
---> Resets the shadow for screen (s) with (restart):
+--> Resets the shadow with (restart):
 -- =========================================================>
-function this:reset(s, restart)
+function this:reset(restart)
     -->> Current screen-specific object reference
-    local current = self.shadows[s.index]
+    local current = self.shadow
     -->> If there is an object then reset it
     if (current) then
         --> Remove references to the object on our end
-        self.shadows[s.index] = nil
+        self.shadow = nil
         --> Restarts the widget if needed
         if (restart) then
             --> Current screen-specific configuration
-            local config = beautiful.shadow(s)
+            local config = beautiful.shadow
             --> Ensure the object's state
             --> remains the same trough restarts
-            config.state = current.state
+            config.state = current.widget.main.visible
             --> Ensure the object's timer
             --> remains the same trough restarts
-            config.timer = current.timer and current.timer.started
+            config.timer = (current.timer and current.timer.started)
             --> Initialize the new object
-            self:init(s)
+            self:init()
             --> If a tag was being shown ensure it is shown again
             if (current.tag) then
-                self.shadows[s.index].actions.update(current.tag)
+                self.shadow.actions.update(current.tag)
             end
         end
         --> Stop the timer if needed and allow it to be garbage-collected

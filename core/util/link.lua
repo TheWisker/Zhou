@@ -22,7 +22,7 @@ local this = {}
 --  [Functions] Link:
 -- =========================================================>
 function this.to(c, w, name)
-    if type(w) == "table" then
+    if (type(w) == "table") then
         w = mysc.to_widget(w)
     end
     c[name] = w

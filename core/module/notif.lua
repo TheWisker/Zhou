@@ -57,26 +57,26 @@ local this = {func = {}, dnd = false}
 -- =========================================================>
 --  [Config] Notifications:
 -- =========================================================>
- naughty.config = {
-        --> Spacing between notifications
-        spacing = dpi(10),
-        --> Space between notifications and edge of the workarea
-        padding = dpi(15),
-        --> List of directories that will be checked by getIcon()
-        icon_dirs = {"/usr/share/pixmaps/"},
-        --> List of formats that will be checked by getIcon()
-        icon_formats = {"svg", "png"},
-        --> Default values for the params to naughty.notification{}
-        defaults = {
-            timeout = 8,
-            ontop = true,
-            screen = awful.screen.primary
-        }
- }
+naughty.config = {
+    --> Spacing between notifications
+    spacing = dpi(20),
+    --> Space between notifications and edge of the workarea
+    padding = dpi(15),
+    --> List of directories that will be checked by getIcon()
+    icon_dirs = {"/usr/share/pixmaps/"},
+    --> List of formats that will be checked by getIcon()
+    icon_formats = {"svg", "png"},
+    --> Default values for the params to naughty.notification{}
+    defaults = {
+        timeout = 8,
+        ontop = true,
+        screen = awful.screen.primary
+    }
+}
 -- =========================================================>
 --  [Functions] Notifications:
 -- =========================================================>
---> Singleton initialization of the notification handler:
+--> Initialization of the notification handler:
 -- =========================================================>
 function this:init()
     -->> Code shortening declarations
@@ -94,11 +94,9 @@ function this:init()
                     if (context ~= "app_icon") then
                         return
                     end
-
                     --> Perform XDG lookup
                     local path = menubar.utils.lookup_icon(hints.app_icon) or
                         menubar.utils.lookup_icon(hints.app_icon:lower())
-
                     --> If an icon was found set it
                     if (path) then
                         n.icon = path
@@ -125,7 +123,7 @@ function this:init()
 
                     -->> Code shortening declarations
                     local s = n.screen
-                    local config = beautiful.notification(s)
+                    local config = beautiful.notification
                     local background = gears.color.change_opacity(
                         table.get_dynamic(config.background),
                         config.opacity
@@ -141,54 +139,20 @@ function this:init()
 
                     -->> Current object actions
                     current.actions = {
-                        destroy = function(reason)
-                            current.animations.arcbar.pause = true
-                            if (current.animations.opacity) then
-                                current.animations.opacity.reason = reason
-                                current.animations.opacity.target = 0
-                            else
-                                --> Destroy the notification
-                                return n:destroy(reason) --> Proper tail call
-                            end
-                            --> Only destroy our current current
-                            if (n.current == current) then
-                                --> Allow current to be garbage-collected even if n is not
-                                n.current = nil
-                            end
-                        end,
+                        -->> Reset the notification timeout
                         reset = function()
                             current.animations.arcbar.target = 0
+                        end,
+                        -->> Destroy the notification with reason
+                        destroy = function(reason)
+                            current.animations.arcbar.pause = true
+                            --> Destroy the notification
+                            return n:destroy(reason) --> Proper tail call
                         end
                     }
 
                     -->> Current object animations
                     current.animations = {
-                        -->> Object opacity in-and-out animation
-                        opacity = mysc.choose(
-                            beautiful.animation.widget.enabled,
-                            function()
-                                return rubato.timed({
-                                    pos = 0,
-                                    rate = beautiful.animation.fps,
-                                    reason = naughty.notification_closed_reason.expired,
-                                    easing = beautiful.animation.widget.notification.easing,
-                                    duration = beautiful.animation.widget.notification.duration,
-                                    subscribed = function(pos)
-                                        current.widget.body.opacity = pos
-                                    end,
-                                    end_callback = function(pos)
-                                        if pos == 0 then
-                                            --> On 'out' completion destroys the notification
-                                            return n:destroy(current.animations.opacity.reason) --> Proper tail call
-                                        elseif (pos == 1) then
-                                            --> On 'in' completion runs arcbar animation
-                                            current.animations.arcbar.target = 100
-                                        end
-                                    end
-                                })
-                            end,
-                            mysc.empty
-                        ),
                         -->> Object arcbar loadbar expiring animation
                         arcbar = rubato.timed({
                             pos = 0,
@@ -219,9 +183,6 @@ function this:init()
                     gears.table.crush(
                         n,
                         {
-                            --> We remove the timeout as
-                            --> we are managing it ourselves
-                            timeout = 0,
                             --> Save original arguments
                             args = args,
                             --> We remove the residency as
@@ -230,6 +191,9 @@ function this:init()
                             --> Save interface and
                             --> bind lifetime with n's
                             current = current,
+                            --> We remove the timeout as
+                            --> we are managing it ourselves
+                            timeout = 4294967, --> As 0 does not work as intended we use this ugly workaround
                             opacity = config.opacity,
                             position = config.position,
                             --> Ensure table exists even if empty
@@ -253,12 +217,12 @@ function this:init()
                             type = "notification",
                             cursor = config.cursor,
                             opacity = config.opacity,
-                            bg = "#00000000",
+                            bg = beautiful.color.static.transparent,
                             --> Add both right and left margins to the total width
-                            maximum_width = dpi(config.size.width + 30, s),
+                            maximum_width = dpi(config.size.width + (2 * s.selected_tag.gap), s),
                             --> Add only the top margin to the total width
-                            maximum_height = dpi(config.size.height + 15, s),
-                            widget_template = --{
+                            maximum_height = dpi(config.size.height + s.selected_tag.gap, s),
+                            widget_template = {
                                 event.connect(
                                     event.connect(
                                         link_to(
@@ -283,7 +247,7 @@ function this:init()
                                                                     forced_width = dpi(10, s),
                                                                     widget = wibox.container.background
                                                                 },
-                                                                --> Constructs one of both widgets
+                                                                --> Constructs one of both widgets (arcbar with close button or only close button)
                                                                 mysc.choose(
                                                                     (current.animations.arcbar.duration ~= 0),
                                                                     function()
@@ -392,8 +356,8 @@ function this:init()
                                                                                     border_color = background,
                                                                                     shape = config.icon.shape,
                                                                                     bg = (config.icon.hollow and
-                                                                                    beautiful.color(s).static.transparent or
-                                                                                    background),
+                                                                                        beautiful.color(s).static.transparent or
+                                                                                        background),
                                                                                     border_width = dpi(config.icon.thickness, s),
                                                                                     widget = wibox.container.background
                                                                                 },
@@ -506,6 +470,8 @@ function this:init()
                                                                                             on_release = function()
                                                                                                 if (not n.resident_value) then
                                                                                                     return current.actions.destroy(naughty.notification_closed_reason.dismissed_by_user) --> Proper tail call
+                                                                                                else
+                                                                                                    return current.actions.reset() --> Proper tail call
                                                                                                 end
                                                                                             end
                                                                                         }),
@@ -518,12 +484,10 @@ function this:init()
                                                                                     widget = wibox.container.background
                                                                                 },
                                                                                 --> Must be wibox widget because of internal workings
-                                                                                base_layout = link_to(
-                                                                                    {
-                                                                                        spacing = dpi(config.actions.space.spacing, s),
-                                                                                        layout = wibox.layout.flex.horizontal
-                                                                                    }, "actions"
-                                                                                ),
+                                                                                base_layout = wibox.widget({
+                                                                                    spacing = dpi(config.actions.space.spacing, s),
+                                                                                    layout = wibox.layout.flex.horizontal
+                                                                                }),
                                                                                 widget = naughty.list.actions
                                                                             },
                                                                             visible = (#(n.actions) >= 1),
@@ -556,16 +520,15 @@ function this:init()
                                                     },
                                                     layout = wibox.layout.fixed.vertical
                                                 },
-                                                opacity = 0,
                                                 shape = mysc.shape("rounded_rect", config.radius, s),
                                                 widget = wibox.container.background
                                             }, "body"
                                         ), function() current.animations.arcbar.pause = false end, "mouse::leave"
                                     ), function() current.animations.arcbar.pause = true end, "mouse::enter"
-                                )--,
-                                --margins = mysc.dpi({top = 15, right = 15, left = 15}),
-                                --widget = wibox.container.margin
-                            --}
+                                ),
+                                margins = mysc.dpi({top = s.selected_tag.gap, right = s.selected_tag.gap, left = s.selected_tag.gap}, s),
+                                widget = wibox.container.margin
+                            }
                         }),
                         --> Disables default on-click actions
                         {buttons = {}}
@@ -653,20 +616,17 @@ function this:init()
                         )
                     )
 
-                    if (current.animations.opacity) then
-                        current.animations.opacity.target = 1
-                    else
-                        current.widget.body.opacity = 1
-                    end
-
                     -->> Manages too many notifications on screen
-                    for i=1,((#(naughty.active)) - floor(s.workarea.height / dpi((config.size.height + 15), s))) do
+                    for i=1,((#(naughty.active)) - floor(s.workarea.height / dpi((config.size.height + s.selected_tag.gap), s))) do
                         --> This must be done after setting current.animations.opacity.target to 1
                         n = naughty.active[i]
                         if (n and (n.current) and (n.current.animations.opacity.target ~= 0)) then
                             n.current.actions.destroy(naughty.notification_closed_reason.too_many_on_screen)
                         end
                     end
+
+                    -->> Start arcbar animation
+                    current.animations.arcbar.target = 100
                 end, "display"
             )
         )
@@ -675,13 +635,13 @@ end
 -- =========================================================>
 --> Resets the notifications with (restart):
 -- =========================================================>
-function this:reset(s, restart)
+function this:reset(restart)
     --> Restarts the object if needed
     if (restart) then
         --> Loop trough all active notifications
         for _,n in next, naughty.active do
-            --> If the norification is persistent and is in s
-            if ((n.timeout_value == 0) and (s.index == n.screen.index) and n.current) then
+            --> If the norification is persistent
+            if ((n.timeout_value == 0) and n.current) then
                 --Change notification properties
             end
         end
@@ -706,17 +666,17 @@ end
 --> Creates custom notification with arguments (args):
 -- =========================================================>
 function this.notify(args)
-    -->> Notification screen
-    local s = args.screen
     -->> Configuration crushed:
     ----> Priority Order: args -> ...style[args.style] -> ...style.default
     args = gears.table.crush(
         gears.table.crush(
             gears.table.crush(
-                {}, --> Make new table to not modify 'style.default'
-                beautiful.notification(s).style.default
+                {
+                    app_name = "AwesomeWM Event"
+                }, --> Make new table to not modify 'style.default'
+                beautiful.notification.style.default
             ),
-            beautiful.notification(s).style[args.style]
+            beautiful.notification.style[args.style]
         ),
         args
     )
@@ -737,14 +697,7 @@ function this.notify(args)
         end
     end
     -->> Notification object
-    return naughty.notification(
-        gears.table.crush(
-            args,
-            { --> Hardset properties
-                app_name = "AwesomeWM Event"
-            }
-        )
-    ) --> Proper tail call
+    return naughty.notification(args) --> Proper tail call
 end
 -- =========================================================>
 --> Usual lua assert that sends error notification on error
@@ -758,7 +711,7 @@ function this:assert(value, message, actions)
         message = message,
         actions = actions,
         title = "Assertion Failure"
-    })
+    }) --> Proper tail call
 end
 -- =========================================================>
 return this

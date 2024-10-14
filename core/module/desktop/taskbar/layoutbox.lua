@@ -53,11 +53,11 @@ function this:init(s)
         local current = self.layoutboxs[s.index]
 
         -->> Code shortening declarations
-        local config = beautiful.layoutbox(s)
+        local config = beautiful.layoutbox
         local link_to = function(widget, key)
             return link.to(current.widget, widget, key) --> Proper tail call
         end
-        local taskbar_height = dpi(beautiful.taskbar(s).height, s)
+        local taskbar_height = dpi(beautiful.taskbar.height, s)
 
         -->> Current object layouts
         current.layout = (config.layout or awful.layout.get(s))
@@ -257,8 +257,8 @@ function this:init(s)
                             widget = wibox.container.background
                         }, "main"
                     )
-                ), {bg = beautiful.color(s).static.click}
-            ), {cursor = beautiful.cursor.button, bg = beautiful.color(s).static.hover}
+                ), {bg = beautiful.color.static.click}
+            ), {cursor = beautiful.cursor.button, bg = beautiful.color.static.hover}
         )
     end
     -->> Always return what must be returned
@@ -277,7 +277,7 @@ function this:reset(s, restart)
         --> Restarts the widget if needed
         if (restart) then
             --> Current screen-specific configuration
-            local config = beautiful.layoutbox(s)
+            local config = beautiful.layoutbox
             --> Ensure the object's state
             --> remains the same trough restarts
             config.state = current.widget.tooltip.visible

@@ -34,7 +34,7 @@ local this = {files = setmetatable({}, {__mode = "kv"})}
 --> Opens the file at (o) and saves it in a weak table:
 -- =========================================================>
 function this:open(o)
-    if not self.files[o] then
+    if (not self.files[o]) then
         gfs.make_parent_directories(o)
         self.files[o] = signal:assert(open(o, "w+"))
     end
@@ -44,7 +44,7 @@ end
 --> Closes the file at (o) removing it from the weak table:
 -- =========================================================>
 function this:close(o)
-    if self.files[o] then
+    if (self.files[o]) then
         self.files[o]:close()
         self.files[o] = nil
     end
@@ -57,14 +57,13 @@ function this:write(o, t)
     return signal:assert(
         file:write(t) == file,
         "Could not read file: " .. o
-        --actions???
     )
 end
 -- =========================================================>
 --> Reads the file at (o) with mode (m):
 -- =========================================================>
 function this:read(o, m)
-    if self.exists(o) then
+    if (self.exists(o)) then
         --> If mode is "a" it cannot fail
         m = m or "a"
         return signal:assert(
@@ -78,7 +77,7 @@ end
 -- =========================================================>
 function this:rename(o, n)
     self:close(o)
-    if self.exists(o) then
+    if (self.exists(o)) then
         signal:assert(rename(o, n))
     end
     return n

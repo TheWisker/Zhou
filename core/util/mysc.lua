@@ -22,11 +22,9 @@ local dpi = require("beautiful").xresources.apply_dpi
 -- =========================================================>
 --  [Imports] Optimization:
 -- =========================================================>
-local next = next
 local type = type
 local unpack = table.unpack
 local setmetatable = setmetatable
-local getmetatable = getmetatable
 -- =========================================================>
 --  [Table] This:
 -- =========================================================>
@@ -79,7 +77,6 @@ function this.memoize(f)
         end
     })
 end
-
 -- =========================================================>
 --> Returns a gears shape (sh) function with
 --> radius (r) adjusted to the screen's (s) dpi:
@@ -150,7 +147,7 @@ end
 -->> Complete syntactic sugar utility function :<
 -- =========================================================>
 function this.choose(c, o1, o2)
-    if c then
+    if (c) then
         return o1() --> Proper tail call
     end
     return o2() --> Proper tail call

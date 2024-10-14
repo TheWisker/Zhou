@@ -11,9 +11,9 @@
 -- =========================================================>
 ----> AwesomeWM Wallpaper
 -- =========================================================>
---  [TODO] Notifications:
+--  [TODO] Wallpaper:
 -- =========================================================>
---
+--> Allow for concurrent use of extended and normal wallpaper
 -- =========================================================>
 --  [Imports] Awesome:
 -- =========================================================>
@@ -35,42 +35,35 @@ local link = require("util.link")
 -- =========================================================>
 --  [Imports] Optimization:
 -- =========================================================>
-local type = type
 local screen = screen --> Awesome Global
 -- =========================================================>
 --  [Table] This:
 -- =========================================================>
-local this = {wallpapers = {}}
+local this = {wallpaper = false}
 -- =========================================================>
 --  [Functions] Wallpaper:
 -- =========================================================>
---> Initializes the wallpaper for screen (s):
+--> Initializes the wallpaper for the desktop:
 -- =========================================================>
-function this:init(s)
+function this:init()
     -->> Wallpapers guard
-    if (not self.wallpapers[s.index]) then
-        -->> Current screen-specific object reference
-        self.wallpapers[s.index] = {widget = {}}
-        local current = self.wallpapers[s.index]
+    if (not self.wallpaper) then
+        -->> Current object reference
+        self.wallpaper = {widget = {}}
+        local current = self.wallpaper
 
         -->> Code shortening declarations
-        local config = beautiful.wallpaper(s)
+        local config = beautiful.wallpaper
 
-        -->> Pointer override for multiscreen wallpapers
-        if (type(config) == "number") then
-            -->> If it points to a nil wallpaper object then initialize it
-            if (not self.wallpapers[config]) then
-                self:init(screen[config])
+        -->> Code shortening function
+        local link_to = function(widget, key, s)
+            --> If adding for screen and table is not initialized
+            if (s and (not current.widget[s.index])) then
+                --> Initialize empty
+                current.widget[s.index] = {}
             end
-
-            -->> Then add current screen to pointer object
-            return self.wallpapers[config].widget.main:add_screen(s) --> Proper tail call
-        end
-
-        -->> Code shortening declarations
-        config = gears.table.crush(beautiful.wallpaper.mode[config.mode], config)
-        local link_to = function(widget, key)
-            return link.to(current.widget, widget, key) --> Proper tail call
+            --> Link the widget with key and return
+            return link.to((s and current.widget[s.index]) or current.widget, widget, key) --> Proper tail call
         end
 
         -->> Current object actions
@@ -117,22 +110,73 @@ function this:init(s)
                 return (file or beautiful.wallpaper.file)
             end,
             -->> Set (wall) as the wallpaper
-            set = function(wall)
-                if (config.pywall) then
-                    beautiful:colors_refresh(s)
-                    signal.awesome.reset(s, true)
-                    collectgarbage() --> While the leakage persists
-                    print(require("util.table").get_dynamic(beautiful.client[1].border.color.urgent))
-                end
+            set = function(wall, init)
+                -->> Set wallpaper
                 current.wallpaper = wall
-                current.widget.wallpaper.image = wall
-                --> Must repaint the wallpaper so the change takes effect
-                return current.widget.main:repaint() --> Proper tail call
+                -->> Update colors
+                if (config.pywall) then
+                    --> Blocking execution as to refresh colors after pywall
+                    os.execute(beautiful.exec.pywall .. current.wallpaper)
+                    beautiful:colors_refresh()
+                    if (not init) then
+                        signal.awesome.reset(true)
+                    end
+                    collectgarbage() --> While the leakage persists
+                end
+                -->> Code shortening function
+                local wallpaper = function(s)
+                    return link_to(
+                        awful.wallpaper({
+                            screen = s,
+                            bg = beautiful.color.static.background,
+                            honor_padding = (config.honor and config.honor.padding),
+                            honor_workarea = (config.honor and config.honor.workarea),
+                            widget = link_to(
+                                {
+                                    auto_dpi = true,
+                                    halign = "center",
+                                    scaling_quality = "best",
+                                    image = current.wallpaper,
+                                    widget = wibox.widget.imagebox
+                                }, "wallpaper", s
+                            )
+                        }), "main", s
+                    ) --> Proper tail call
+                end
+                -->> Set wallpaper with or without expansion
+                if (config.extend) then
+                    --> Screen-specific guard
+                    if (not (current.widget.main and current.widget.wallpaper)) then
+                        --> Create one wallpaper for all screens
+                        wallpaper()
+                        --> Loop trough all screens adding the wallpaper
+                        for s in screen do
+                            current.widget.main:add_screen(s)
+                        end
+                    else
+                        current.widget.wallpaper.image = current.wallpaper
+                        --> Repain the wallpaper to show the update
+                        return current.widget.main:repaint() --> Proper tail call
+                    end
+                else
+                    --> Loop trough all screens adding the wallpapers
+                    for s in screen do
+                        --> Screen-specific guard
+                        if (not current.widget[s.index]) then
+                            --> Create a wallpaper for a screen
+                            wallpaper(s)
+                        else
+                            current.widget[s.index].wallpaper.image = current.wallpaper
+                            --> Repain the wallpaper to show the update
+                            current.widget[s.index].main:repaint()
+                        end
+                    end
+                end
             end
         }
 
         -->> Current object timer
-        if ((config.timeout) and (config.timeout ~= 0)) then
+        if (config.timeout and (config.timeout ~= 0)) then
             current.timer = gears.timer({
                 autostart = true,
                 single_shot = false,
@@ -145,53 +189,46 @@ function this:init(s)
             })
         end
 
-        -->> Current wallpaper file
-        current.wallpaper = current.actions.get()
-
-        -->> Current object widget
-        return link_to(
-            awful.wallpaper({
-                screen = s,
-                bg = beautiful.color(s).static.background,
-                honor_padding = (config.honor and config.honor.padding),
-                honor_workarea = (config.honor and config.honor.workarea),
-                widget = link_to(
-                    {
-                        auto_dpi = true,
-                        halign = "center",
-                        scaling_quality = "best",
-                        image = current.wallpaper,
-                        widget = wibox.widget.imagebox
-                    }, "wallpaper"
-                )
-            }), "main"
+        -->> Set the wallpaper initially
+        return current.actions.set(
+            current.actions.get(), true
         ) --> Proper tail call
     end
 end
 -- =========================================================>
---> Resets the wallpaper for screen (s) with (restart):
+--> Resets the wallpaper for the desktop with (restart):
 -- =========================================================>
-function this:reset(s, restart)
-    --> Current screen-specific object reference
-    local current = self.wallpapers[s.index]
-    --> If there is a wallpaper object reset it
+function this:reset(restart)
+    -->> Current object reference
+    local current = self.wallpaper
+    -->> If there is a wallpaper object reset it
     if (current) then
         --> Remove the reference to allow it to be garbage-collected
-        self.wallpapers[s.index] = nil
+        self.wallpaper = nil
         --> If there is a timer stop it and allow it to be garbage-collected
         if (current.timer) then
             current.timer:stop()
         end
-        --> Detaches the wallpaper from screen but does not clear its buffer
-        current.widget.main:detach()
+        --> Remove the wallpaper or wallpapers
+        if (beautiful.wallpaper.extend) then
+            --> Detaches the wallpaper from screens but does not clear its buffer
+            current.widget.main:detach()
+        else
+            --> Loop trough all screens
+            for s in screen do
+                --> Detaches the wallpaper from screen but does not clear its buffer
+                current.widget[s.index].main:detach()
+            end
+        end
         --> Restarts the wallpaper if needed
         if (restart) then
-            return self:init(s) --> Proper tail call
+             --> Restart the wallpaper
+            return self:init() --> Proper tail call
         else
-            --> If it does not restart set the background to a solid color
+            --> If we do not restart then we set the background to a solid color
             --> This is automatically detached by awesome on new wallpaper set
             return awful.wallpaper({
-                screen = s,
+                screens = screen, --> Set for all screens
                 bg = beautiful.color.static.background
             }) --> Proper tail call
         end

@@ -14,7 +14,6 @@
 --  [Imports] Awesome:
 -- =========================================================>
 local gears = require("gears")
-local beautiful = require("beautiful")
 -- =========================================================>
 --  [Imports] Utils:
 -- =========================================================>
@@ -48,7 +47,7 @@ end
 --> Gets the opacity of the color (c):
 -- =========================================================>
 function this.get_opacity(c)
-    if not this.is_color(c) then return c end
+    if (not this.is_color(c)) then return c end
     --> the 4th element is opacity (r, g, b, a)
     local _, _, _, o = this.as_rgba(c)
     return o
@@ -58,7 +57,7 @@ end
 -- =========================================================>
 function this.solid_gradient(c, a, o)
     --> If color is a gradient its type is table
-    if type(c) == "table" then
+    if (type(c) == "table") then
         local stops = {}
         --> Gradients come as arrays of {stop, color}
         for i=1,#c do
