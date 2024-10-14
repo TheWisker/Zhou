@@ -44,7 +44,7 @@ local loadfile = loadfile
 local conf_path = gears.filesystem.get_configuration_dir()
 local icon_path = conf_path .. "assets/icons/"
 local symlink_path = conf_path .. "assets/symlinks/"
-local wallpaper_path = conf_path .. "assets/wallpapers/"
+local wallpaper_path = symlink_path .. "wallpapers/"
 -- =========================================================>
 --  [Table] Theme:
 -- =========================================================>
