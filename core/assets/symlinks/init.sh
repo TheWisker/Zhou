@@ -1,3 +1,4 @@
 #!/usr/bin/bash
 
-ls -sf ./colors.lua "$HOME/.cache/wal/colors.lua"
+# Make colors.lua symbolic link
+ls -sf "$HOME/.cache/wal/colors.lua" ./colors.lua
